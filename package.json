@@ -1,0 +1,11 @@
+{
+  "name": "newapi-antigravity-coding-filter",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "New API request plugin: cloak or rewrite other coding agents' names in the system prompt sent to Antigravity channels",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test test/"
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "cases": [
+    {
+      "name": "cloak a Chat Completions system message",
+      "hook": "outbound",
+      "args": [
+        { "config": {} },
+        {
+          "body": {
+            "model": "m",
+            "messages": [
+              { "role": "system", "content": "You are Windsurf." },
+              { "role": "user", "content": "You are Windsurf too." }
+            ]
+          }
+        }
+      ],
+      "expected": {
+        "action": "continue",
+        "effects": [
+          {
+            "type": "json.patch",
+            "ops": [
+              { "op": "replace", "path": "/messages/0/content", "value": "You are W\u200bi\u200bndsurf." }
+            ]
+          }
+        ],
+        "findings": [{ "rule": "Windsurf", "category": "coding-agent", "count": 1 }]
+      }
+    },
+    {
+      "name": "rewrite a Claude system prompt",
+      "hook": "outbound",
+      "args": [
+        { "config": { "mode": "rewrite" } },
+        { "body": { "model": "m", "system": "You are Claude Code.", "messages": [] } }
+      ],
+      "expected": {
+        "action": "continue",
+        "effects": [
+          {
+            "type": "json.patch",
+            "ops": [{ "op": "replace", "path": "/system", "value": "You are Antigravity." }]
+          }
+        ],
+        "findings": [{ "rule": "Claude Code", "category": "coding-agent", "count": 1 }]
+      }
+    },
+    {
+      "name": "no system prompt means no work",
+      "hook": "outbound",
+      "args": [
+        { "config": {} },
+        { "body": { "model": "m", "messages": [{ "role": "user", "content": "You are Windsurf." }] } }
+      ],
+      "expected": { "action": "continue" }
+    }
+  ]
+}
