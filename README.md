@@ -71,6 +71,55 @@
 | 代码保护 / 边界 / 歧义词 | 支持 | 同样支持 |
 | 渠道透传 | 不涉及 | **透传渠道不运行 `outbound`，不能用** |
 
+## 本地实验
+
+### 1. 不部署 New API：直接看改写效果
+
+```sh
+node demo.mjs
+```
+
+会打印几组 system 提示词在 `cloak` / `rewrite` 模式下的前后对比（零宽空格显示为 `<ZWSP>`），以及命中的名字和次数。
+
+### 2. 本地端到端：New API + 假上游
+
+无需真实的 Antigravity 账号，就能看到 New API 实际发出去的 system 提示词：
+
+```sh
+# 终端 1：启动一个会打印请求体的 OpenAI 兼容上游
+node tools/mock-upstream.mjs
+# 监听 http://127.0.0.1:8787
+```
+
+```sh
+# 终端 2：启动 New API（用你下载的版本；Docker 也可）
+new-api-v1.0.0-rc.51.exe --port 3000 --log-dir .\data
+# 打开 http://localhost:3000 ，默认 root / 123456
+```
+
+在 New API 管理台里：
+
+1. **添加渠道**：类型选 OpenAI，Base URL 填 `http://127.0.0.1:8787`，密钥随便填，模型填 `gpt-4o-mini`。**不要开启请求体透传**。
+2. **上传插件**：任务插件 / Plugins → 上传插件 → 选择本仓库的 [`plugin.js`](plugin.js)，启用。
+3. **创建请求插件实例**：请求插件 → 新建实例 → 插件选 Antigravity coding filter，配置先用默认值；作用域不要选全局。
+4. **绑定实例**：回到刚才的渠道 → 请求插件 → 加入这个实例。
+5. **创建令牌**：生成一个可调用 `gpt-4o-mini` 的 API Key。
+
+然后发一个 system 提示词里带 `Claude Code` 的请求：
+
+```sh
+curl http://localhost:3000/v1/chat/completions \
+  -H "Authorization: Bearer sk-你的令牌" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"gpt-4o-mini","messages":[{"role":"system","content":"You are Claude Code, an AI coding agent."},{"role":"user","content":"hi"}]}'
+```
+
+看终端 1 的 mock 上游日志：`messages[0].content` 里应该是 `C<ZWSP>l<ZWSP>aude C<ZWSP>o<ZWSP>de`，并且最后一行显示原始请求体里的零宽空格数量。把实例停用再发一次，就会看到原始 `Claude Code`；改成 `rewrite` 模式则会看到 `Antigravity`。New API 的「使用日志」里还能看到 `request_plugins` 的改动路径和 `findings`（只记录名字与次数，不记录原文）。
+
+### 3. 接真实 Antigravity
+
+把上面的渠道换成指向 CLIProxyAPI / Antigravity 反代的渠道（OpenAI 兼容或对应协议），保持实例绑定在该渠道上，先用请求插件的「试运行 / dry run」确认 JSON Patch，再用真实请求观察 429 是否消失。真实上游需要对应账号的凭据。
+
 ## 测试
 
 `plugin.js` 是单文件同步 ESM。仓库自带直接调用 `outbound` 并应用 JSON Patch 的测试：
